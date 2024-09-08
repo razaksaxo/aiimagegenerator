@@ -1,0 +1,345 @@
+<html><head><base href="https://ai-image-generator.com/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced AI Image Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    color: #333;
+    background-color: #f0f0f0;
+    height: 100%;
+    overflow-x: hidden;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+  }
+  h1 {
+    font-size: 3rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #fff;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  }
+  .input-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  input[type="text"], select, input[type="number"] {
+    flex-grow: 1;
+    padding: 1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  button {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #45a049;
+  }
+  .options-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .option-group {
+    flex: 1 1 200px;
+  }
+  .option-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #fff;
+    font-weight: bold;
+  }
+  .style-selector, .dimension-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .style-option, .dimension-option {
+    padding: 0.5rem 1rem;
+    background-color: #fff;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .style-option:hover, .style-option.active,
+  .dimension-option:hover, .dimension-option.active {
+    background-color: #4CAF50;
+    color: white;
+  }
+  .generated-images {
+    display: grid;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  .image-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  .generated-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.3s;
+  }
+  .image-container:hover .generated-image {
+    transform: scale(1.05);
+  }
+  .download-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background-color: rgba(76, 175, 80, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .download-btn:hover {
+    background-color: rgba(76, 175, 80, 1);
+  }
+  .loading {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-top: 2rem;
+    color: #fff;
+  }
+  #vanta-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+</style>
+</head>
+<body>
+  <div id="vanta-bg"></div>
+  <div class="container">
+    <h1>Advanced AI Image Generator</h1>
+    <div class="input-container">
+      <input type="text" id="prompt-input" placeholder="Describe the image you want to generate...">
+      <input type="number" id="image-count" min="1" max="100" value="1" placeholder="Number of images (1-100)">
+      <button onclick="generateImages()">Generate</button>
+    </div>
+    <div class="options-container">
+      <div class="option-group">
+        <label>Dimension:</label>
+        <div class="dimension-selector">
+          <div class="dimension-option active" onclick="selectDimension(this, '2D')">2D</div>
+          <div class="dimension-option" onclick="selectDimension(this, '3D')">3D</div>
+        </div>
+      </div>
+      <div class="option-group">
+        <label>Viewpoint:</label>
+        <select id="viewpoint">
+          <option value="frontal">Frontal</option>
+          <option value="profile">Profile</option>
+          <option value="aerial">Aerial view</option>
+          <option value="perspective">Perspective</option>
+          <option value="firstPerson">First person</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Images per row:</label>
+        <input type="number" id="images-per-row" min="1" max="10" value="4">
+      </div>
+      <div class="option-group">
+        <label>Lighting:</label>
+        <select id="lighting">
+          <option value="natural">Natural</option>
+          <option value="studio">Studio</option>
+          <option value="dramatic">Dramatic</option>
+          <option value="night">Night</option>
+          <option value="sunrise">Sunrise</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Aspect ratio:</label>
+        <select id="aspect-ratio">
+          <option value="1:1">1:1 (Square)</option>
+          <option value="4:3">4:3</option>
+          <option value="16:9">16:9</option>
+          <option value="21:9">21:9 (Ultrawide)</option>
+          <option value="9:16">9:16 (Vertical)</option>
+        </select>
+      </div>
+    </div>
+    <div class="style-selector">
+      <div class="style-option active" onclick="selectStyle(this, 'realistic')">Realistic</div>
+      <div class="style-option" onclick="selectStyle(this, 'anime')">Anime</div>
+      <div class="style-option" onclick="selectStyle(this, 'watercolor')">Watercolor</div>
+      <div class="style-option" onclick="selectStyle(this, 'pixel-art')">Pixel Art</div>
+      <div class="style-option" onclick="selectStyle(this, 'oil-painting')">Oil Painting</div>
+      <div class="style-option" onclick="selectStyle(this, 'pop-art')">Pop Art</div>
+      <div class="style-option" onclick="selectStyle(this, 'abstract')">Abstract</div>
+      <div class="style-option" onclick="selectStyle(this, 'impressionist')">Impressionist</div>
+      <div class="style-option" onclick="selectStyle(this, 'surrealist')">Surrealist</div>
+      <div class="style-option" onclick="selectStyle(this, 'minimalist')">Minimalist</div>
+      <div class="style-option" onclick="selectStyle(this, 'cubist')">Cubist</div>
+      <div class="style-option" onclick="selectStyle(this, 'art-nouveau')">Art Nouveau</div>
+      <div class="style-option" onclick="selectStyle(this, 'bauhaus')">Bauhaus</div>
+      <div class="style-option" onclick="selectStyle(this, 'cyberpunk')">Cyberpunk</div>
+      <div class="style-option" onclick="selectStyle(this, 'steampunk')">Steampunk</div>
+      <div class="style-option" onclick="selectStyle(this, 'vaporwave')">Vaporwave</div>
+      <div class="style-option" onclick="selectStyle(this, 'art-deco')">Art Deco</div>
+      <div class="style-option" onclick="selectStyle(this, 'low-poly')">Low Poly</div>
+      <div class="style-option" onclick="selectStyle(this, 'vector')">Vector</div>
+      <div class="style-option" onclick="selectStyle(this, 'comic')">Comic</div>
+    </div>
+    <div id="generated-images" class="generated-images"></div>
+    <div id="loading" class="loading" style="display: none;">Generating images...</div>
+  </div>
+
+  <script>
+    let selectedStyle = 'realistic';
+    let selectedDimension = '2D';
+
+    function selectStyle(element, style) {
+      document.querySelectorAll('.style-option').forEach(el => el.classList.remove('active'));
+      element.classList.add('active');
+      selectedStyle = style;
+    }
+
+    function selectDimension(element, dimension) {
+      document.querySelectorAll('.dimension-option').forEach(el => el.classList.remove('active'));
+      element.classList.add('active');
+      selectedDimension = dimension;
+    }
+
+    function generateImages() {
+      const prompt = document.getElementById('prompt-input').value;
+      const imageCount = parseInt(document.getElementById('image-count').value);
+      const viewpoint = document.getElementById('viewpoint').value;
+      const imagesPerRow = parseInt(document.getElementById('images-per-row').value);
+      const lighting = document.getElementById('lighting').value;
+      const aspectRatio = document.getElementById('aspect-ratio').value;
+      const loadingDiv = document.getElementById('loading');
+      const generatedImagesDiv = document.getElementById('generated-images');
+
+      if (prompt.trim() === '') {
+        alert('Please enter a description for the image.');
+        return;
+      }
+
+      if (imageCount < 1 || imageCount > 100) {
+        alert('Please select a number of images between 1 and 100.');
+        return;
+      }
+
+      loadingDiv.style.display = 'block';
+      loadingDiv.classList.add('pulse');
+      generatedImagesDiv.innerHTML = '';
+
+      // Configuring grid based on imagesPerRow
+      generatedImagesDiv.style.gridTemplateColumns = `repeat(${imagesPerRow}, 1fr)`;
+
+      // Simulating image generation with random timeout
+      setTimeout(() => {
+        loadingDiv.style.display = 'none';
+        loadingDiv.classList.remove('pulse');
+        
+        for (let i = 0; i < imageCount; i++) {
+          const imageContainer = document.createElement('div');
+          imageContainer.className = 'image-container';
+          
+          const img = document.createElement('img');
+          img.className = 'generated-image';
+          img.src = `https://picsum.photos/seed/${Math.random()}/${getAspectRatioDimensions(aspectRatio)}`;
+          img.alt = `${prompt} in ${selectedStyle} style (${selectedDimension}, ${viewpoint}, ${lighting})`;
+          
+          const downloadBtn = document.createElement('button');
+          downloadBtn.className = 'download-btn';
+          downloadBtn.innerHTML = '⭳';
+          downloadBtn.onclick = () => downloadImage(img.src, `${prompt}_${selectedStyle}_${selectedDimension}_${i+1}.jpg`);
+          
+          imageContainer.appendChild(img);
+          imageContainer.appendChild(downloadBtn);
+          generatedImagesDiv.appendChild(imageContainer);
+        }
+      }, Math.random() * 3000 + 2000);
+    }
+
+    function getAspectRatioDimensions(aspectRatio) {
+      const baseWidth = 400;
+      switch (aspectRatio) {
+        case '1:1': return `${baseWidth}/${baseWidth}`;
+        case '4:3': return `${baseWidth}/${Math.round(baseWidth * 3 / 4)}`;
+        case '16:9': return `${baseWidth}/${Math.round(baseWidth * 9 / 16)}`;
+        case '21:9': return `${baseWidth}/${Math.round(baseWidth * 9 / 21)}`;
+        case '9:16': return `${Math.round(baseWidth * 9 / 16)}/${baseWidth}`;
+        default: return `${baseWidth}/${baseWidth}`;
+      }
+    }
+
+    function downloadImage(imageSrc, fileName) {
+      fetch(imageSrc)
+        .then(response => response.blob())
+        .then(blob => {
+          saveAs(blob, fileName);
+        })
+        .catch(error => {
+          console.error('Error downloading the image:', error);
+          alert('There was an error downloading the image. Please try again.');
+        });
+    }
+
+    // Initialize background animation with Vanta.js
+    VANTA.NET({
+      el: "#vanta-bg",
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.00,
+      minWidth: 200.00,
+      scale: 1.00,
+      scaleMobile: 1.00,
+      color: 0x4CAF50,
+      backgroundColor: 0x1a1a1a,
+      points: 20.00,
+      maxDistance: 23.00,
+      spacing: 16.00
+    });
+  </script>
+</body></html>
